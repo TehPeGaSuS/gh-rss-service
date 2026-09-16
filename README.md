@@ -96,7 +96,7 @@ docker build -t gh-rss-service .
 docker run -d --name gh-rss-service \
   -p 8080:8080 \
   -e GITHUB_ACCESS_TOKEN=ghp_xxx \
-  -v gh-rss-data:/data \
+  -v ./gh-rss-data:/data \
   gh-rss-service
 ```
 

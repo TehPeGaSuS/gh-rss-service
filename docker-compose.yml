@@ -8,7 +8,4 @@ services:
     environment:
       GITHUB_ACCESS_TOKEN: ${GITHUB_ACCESS_TOKEN}
     volumes:
-      - gh-rss-data:/data
-
-volumes:
-  gh-rss-data:
+      - ./gh-rss-data:/data
