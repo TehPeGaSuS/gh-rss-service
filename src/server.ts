@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { ensureConfigFile, ensureRegistered, loadConfig } from './config.js';
-import { readItems, upsertItems, pruneFeed } from './db.js';
+import { readItems, readFeedMeta, upsertItems, upsertFeedMeta, pruneFeed } from './db.js';
 import { toRss } from './feed.js';
 import { routes } from './routes/index.js';
 import { startScheduler } from './scheduler.js';
@@ -32,6 +32,7 @@ for (const route of Object.values(routes)) {
         if (!alreadyRegistered) {
             try {
                 const result = await route.fetchItems(params);
+                upsertFeedMeta(id, result.title, result.link);
                 upsertItems(id, result.items);
                 const entry: FeedConfigEntry = { id, route: route.key, params };
                 ensureRegistered(entry);
@@ -44,7 +45,8 @@ for (const route of Object.values(routes)) {
 
         pruneFeed(id, 500);
         const items = readItems(id, 100);
-        res.type('application/rss+xml').send(toRss(`GitHub ${route.key}: ${Object.values(params).join('/')}`, 'https://github.com', items));
+        const meta = readFeedMeta(id) ?? { title: `GitHub ${route.key}: ${Object.values(params).join('/')}`, link: 'https://github.com' };
+        res.type('application/rss+xml').send(toRss(meta.title, meta.link, items));
     });
 }
 
@@ -57,8 +59,8 @@ app.get('/feed/:id', (req, res) => {
         return;
     }
     const items = readItems(entry.id, entry.limit ?? 100);
-    const title = `${entry.id} (${entry.route})`;
-    res.type('application/rss+xml').send(toRss(title, 'https://github.com', items));
+    const meta = readFeedMeta(entry.id) ?? { title: `${entry.id} (${entry.route})`, link: 'https://github.com' };
+    res.type('application/rss+xml').send(toRss(meta.title, meta.link, items));
 });
 
 app.get('/healthz', (_req, res) => res.json({ ok: true }));

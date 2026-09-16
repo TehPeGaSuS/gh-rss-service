@@ -16,7 +16,7 @@ export const pull: RouteModule = {
         })) as any[];
 
         return {
-            title: `${user}/${repo} ${state} Pull Requests${labels ? ' - ' + labels : ''}`,
+            title: `${user}/${repo} ${state.replace(/^\S/, (s) => s.toUpperCase())} Pull Requests${labels ? ' - ' + labels : ''}`,
             link: host,
             items: data
                 .filter((item) => item.pull_request)

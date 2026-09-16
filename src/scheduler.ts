@@ -1,6 +1,6 @@
 import { routes } from './routes/index.js';
 import { loadConfig } from './config.js';
-import { upsertItems, pruneFeed } from './db.js';
+import { upsertItems, upsertFeedMeta, pruneFeed } from './db.js';
 
 async function pollOnce(): Promise<void> {
     const entries = loadConfig();
@@ -16,6 +16,7 @@ async function pollOnce(): Promise<void> {
         }
         try {
             const result = await route.fetchItems(entry.params);
+            upsertFeedMeta(entry.id, result.title, result.link);
             upsertItems(entry.id, result.items);
             pruneFeed(entry.id, entry.limit ?? 500);
             console.log(`[poll] ${entry.id}: ${result.items.length} items fetched`);

@@ -7,6 +7,11 @@ export const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
 db.exec(`
+CREATE TABLE IF NOT EXISTS feeds (
+    feed_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    link TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS feed_items (
     feed_id TEXT NOT NULL,
     guid TEXT NOT NULL,
@@ -48,6 +53,21 @@ const pruneStmt = db.prepare(`
         SELECT guid FROM feed_items WHERE feed_id = ? ORDER BY first_seen DESC LIMIT ?
     )
 `);
+
+const upsertFeedStmt = db.prepare(`
+    INSERT INTO feeds (feed_id, title, link) VALUES (@feed_id, @title, @link)
+    ON CONFLICT(feed_id) DO UPDATE SET title = excluded.title, link = excluded.link
+`);
+
+const selectFeedStmt = db.prepare(`SELECT title, link FROM feeds WHERE feed_id = ?`);
+
+export function upsertFeedMeta(feedId: string, title: string, link: string): void {
+    upsertFeedStmt.run({ feed_id: feedId, title, link });
+}
+
+export function readFeedMeta(feedId: string): { title: string; link: string } | undefined {
+    return selectFeedStmt.get(feedId) as { title: string; link: string } | undefined;
+}
 
 export function upsertItems(feedId: string, items: FeedItem[]): void {
     const now = new Date().toISOString();
