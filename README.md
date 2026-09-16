@@ -20,7 +20,7 @@ never re-emitted (fixes the "years-old issues suddenly post" problem some RSSHub
 - The HTTP server renders RSS 2.0 XML for a feed **from the database**, not from a live API call
   (except on that first auto-registering request), so repeat requests are always fast and always
   monotonic regardless of GitHub API state.
-- Point Limnoria's `rss` plugin (or any reader) at `http://host:PORT/github/<route-path>` directly,
+- Point any RSS reader (e.g. Limnoria's `rss` plugin) at `http://host:PORT/github/<route-path>` directly,
   e.g. `http://host:PORT/github/pull/DIYgod/RSSHub/open`. A legacy `GET /feed/:id` also works for
   ids defined explicitly in `config.json`.
 
@@ -85,7 +85,7 @@ for an API-only service. Calling them returns a single explanatory placeholder i
 - `pulse` — `/pulse/:user/:repo/:period?` (scrapes the Pulse page)
 - `trending` — `/trending/:since/:language/:spoken_language?` (scrapes the Trending page)
 
-If you need these, either keep pointing Limnoria at RSSHub for just those specific feeds, or
+If you need these, either keep pointing your RSS reader at RSSHub for just those specific feeds, or
 add a headless-browser/cheerio scraper module later — the route interface (`RouteModule` in
 `src/types.ts`) is designed so a scraping-based route slots in the same way as the API-based ones.
 
@@ -166,7 +166,7 @@ ProxyPass        /gh-rss/ http://127.0.0.1:8080/
 ProxyPassReverse /gh-rss/ http://127.0.0.1:8080/
 ```
 
-Point Limnoria's `rss` plugin at the proxied URL, e.g.
+Point your RSS reader (e.g. Limnoria's `rss` plugin) at the proxied URL, e.g.
 `https://gh-rss.example.com/github/issue/anope/anope/closed`.
 
 ## Discover feeds
