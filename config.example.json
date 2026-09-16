@@ -1,0 +1,26 @@
+[
+  {
+    "id": "rsshub-issues",
+    "route": "issue",
+    "params": { "user": "DIYgod", "repo": "RSSHub", "state": "open" },
+    "limit": 50
+  },
+  {
+    "id": "rsshub-pulls",
+    "route": "pull",
+    "params": { "user": "DIYgod", "repo": "RSSHub", "state": "open" },
+    "limit": 50
+  },
+  {
+    "id": "rsshub-releases",
+    "route": "releases",
+    "params": { "user": "DIYgod", "repo": "RSSHub" },
+    "limit": 30
+  },
+  {
+    "id": "myuser-activity",
+    "route": "activity",
+    "params": { "user": "octocat" },
+    "limit": 50
+  }
+]

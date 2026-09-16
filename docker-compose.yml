@@ -1,0 +1,14 @@
+services:
+  gh-rss-service:
+    build: .
+    image: ghcr.io/OWNER/gh-rss-service:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      GITHUB_ACCESS_TOKEN: ${GITHUB_ACCESS_TOKEN}
+    volumes:
+      - gh-rss-data:/data
+
+volumes:
+  gh-rss-data:
