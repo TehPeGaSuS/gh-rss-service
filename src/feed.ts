@@ -1,42 +1,41 @@
+import { Feed } from 'feed';
 import type { FeedItem } from './types.js';
 
-// Strip characters XML 1.0 forbids outright (most C0 controls, and a few
-// non-characters), so item bodies containing e.g. raw IRC formatting codes
-// or copy-pasted terminal output don't produce unparseable feeds.
+// The `feed` library handles XML entity-escaping and CDATA wrapping, but it does
+// NOT strip characters XML forbids outright (most C0 control bytes and a
+// couple of non-characters) -- content copied from IRC formatting codes or
+// raw terminal output can contain these and break every downstream parser.
+// Strip them ourselves before handing strings to the library.
 // eslint-disable-next-line no-control-regex
 const INVALID_XML_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g;
 
-function esc(s: string): string {
-    return s
-        .replace(INVALID_XML_CHARS, '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+function clean(s: string): string;
+function clean(s: string | undefined): string | undefined;
+function clean(s: string | undefined): string | undefined {
+    return s?.replace(INVALID_XML_CHARS, '');
 }
 
 export function toRss(title: string, link: string, items: FeedItem[]): string {
-    const itemsXml = items
-        .map(
-            (item) => `
-    <item>
-      <title>${esc(item.title)}</title>
-      <link>${esc(item.link)}</link>
-      <guid isPermaLink="false">${esc(item.guid)}</guid>
-      ${item.author ? `<author>${esc(item.author)}</author>` : ''}
-      <pubDate>${new Date(item.pubDate).toUTCString()}</pubDate>
-      ${item.description ? `<description>${esc(item.description)}</description>` : ''}
-    </item>`
-        )
-        .join('');
+    const feed = new Feed({
+        title: clean(title),
+        id: link,
+        link,
+        description: clean(title),
+        copyright: '',
+        generator: false,
+    });
 
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-  <channel>
-    <title>${esc(title)}</title>
-    <link>${esc(link)}</link>
-    <description>${esc(title)}</description>
-    ${itemsXml}
-  </channel>
-</rss>`;
+    for (const item of items) {
+        feed.addItem({
+            title: clean(item.title),
+            id: item.guid,
+            guid: item.guid,
+            link: item.link,
+            date: new Date(item.pubDate),
+            description: clean(item.description),
+            author: item.author ? [{ name: clean(item.author) }] : undefined,
+        });
+    }
+
+    return feed.rss2();
 }
