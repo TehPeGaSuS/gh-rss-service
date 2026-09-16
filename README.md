@@ -118,6 +118,31 @@ registered feeds and dedup state across restarts.
 A GitHub Actions workflow (`.github/workflows/docker-publish.yml`) builds and pushes
 `ghcr.io/<owner>/gh-rss-service:latest` (and a `:sha-<short>` tag) on every push to `main`.
 
+## Reverse proxy (nginx example)
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name gh-rss.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # SSL config (certbot, etc.) goes here
+}
+```
+
+Or under a sub-path:
+
+```nginx
+location /gh-rss/ {
+    proxy_pass http://127.0.0.1:8080/;
+}
+```
+
 ## Reverse proxy (Apache example)
 
 To expose this behind a domain/path with Apache (`mod_proxy`, `mod_proxy_http` enabled):
