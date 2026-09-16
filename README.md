@@ -12,8 +12,8 @@ never re-emitted (fixes the "years-old issues suddenly post" problem some RSSHub
   params, and appends it to `config.json`. From then on the scheduler polls it automatically.
   No hand-editing `config.json` required, though you still can (e.g. to set a custom `id`/`limit`,
   or to pre-seed feeds before first request).
-- A scheduler polls every registered feed every 5 minutes, aligned to the wall clock
-  (`:00`, `:05`, `:10`, ...), fetches fresh items from GitHub, and **upserts** them into SQLite
+- A scheduler polls every registered feed every `POLL_INTERVAL_MINUTES` (default 5), aligned to
+  the wall clock (`:00`, `:05`, `:10`, ...), fetches fresh items from GitHub, and **upserts** them into SQLite
   keyed by `(feed_id, guid)`. `pub_date`/`first_seen` are only ever set once per item and never
   updated, so an item's position in the feed is permanent — a GitHub API hiccup (reordering,
   transient omission) can never cause a re-post.
@@ -44,6 +44,9 @@ Env vars:
 - `PORT` — HTTP port (default `8080`).
 - `CONFIG_PATH` — path to the feed config JSON (default `./config.json`).
 - `DB_PATH` — path to the SQLite file (default `./data.sqlite3`).
+- `POLL_INTERVAL_MINUTES` — how often the scheduler polls each feed, aligned to the wall clock
+  (default `5`). Use a divisor of 60 (`1`, `2`, `3`, `5`, `10`, `15`, `20`, `30`, `60`) to keep the
+  alignment clean across hour boundaries.
 
 ## Routes ported
 

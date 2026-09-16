@@ -26,11 +26,20 @@ async function pollOnce(): Promise<void> {
     }
 }
 
-function msUntilNextFiveMinuteMark(): number {
+const POLL_INTERVAL_MINUTES = (() => {
+    const raw = Number(process.env.POLL_INTERVAL_MINUTES ?? 5);
+    if (!Number.isFinite(raw) || raw <= 0 || raw > 1440) {
+        console.warn(`[poll] invalid POLL_INTERVAL_MINUTES "${process.env.POLL_INTERVAL_MINUTES}", falling back to 5`);
+        return 5;
+    }
+    return raw;
+})();
+
+function msUntilNextIntervalMark(intervalMinutes: number): number {
     const now = new Date();
     const next = new Date(now);
     next.setSeconds(0, 0);
-    next.setMinutes(Math.ceil((now.getMinutes() + 1e-6) / 5) * 5);
+    next.setMinutes(Math.ceil((now.getMinutes() + 1e-6) / intervalMinutes) * intervalMinutes);
     return next.getTime() - now.getTime();
 }
 
@@ -39,9 +48,10 @@ export function startScheduler(): void {
         setTimeout(async () => {
             await pollOnce().catch((err) => console.error('[poll] unexpected error:', err));
             schedule();
-        }, msUntilNextFiveMinuteMark());
+        }, msUntilNextIntervalMark(POLL_INTERVAL_MINUTES));
     };
-    // Run once immediately on boot, then align to the wall-clock 5-minute grid.
+    console.log(`[poll] polling every ${POLL_INTERVAL_MINUTES} minute(s), aligned to the wall clock`);
+    // Run once immediately on boot, then align to the wall-clock interval grid.
     pollOnce()
         .catch((err) => console.error('[poll] unexpected error:', err))
         .finally(schedule);
