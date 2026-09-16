@@ -1,7 +1,7 @@
 services:
   gh-rss-service:
     build: .
-    image: ghcr.io/OWNER/gh-rss-service:latest
+    image: ghcr.io/tehpegasus/gh-rss-service:latest
     restart: unless-stopped
     ports:
       - "8080:8080"

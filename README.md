@@ -100,9 +100,14 @@ docker run -d --name gh-rss-service \
   gh-rss-service
 ```
 
-Or with compose (edit `docker-compose.yml`'s image owner first, or just `build:` locally):
+Or with compose. `docker-compose.yml` points at the published `ghcr.io/tehpegasus/gh-rss-service:latest`,
+and also keeps `build: .` so you can build from local source instead:
 
 ```sh
+# use the published GHCR image
+GITHUB_ACCESS_TOKEN=ghp_xxx docker compose pull && docker compose up -d
+
+# or build from local source
 GITHUB_ACCESS_TOKEN=ghp_xxx docker compose up -d --build
 ```
 
