@@ -3,6 +3,13 @@ import type { FeedConfigEntry } from './types.js';
 
 const configPath = process.env.CONFIG_PATH ?? './config.json';
 
+// Called once at startup so the file always exists on disk (helpful when a
+// volume mount expects it, or when relying entirely on auto-register with no
+// hand-written config up front).
+export function ensureConfigFile(): void {
+    if (!existsSync(configPath)) writeFileSync(configPath, '[]\n', 'utf-8');
+}
+
 export function loadConfig(): FeedConfigEntry[] {
     if (!existsSync(configPath)) return [];
     const raw = readFileSync(configPath, 'utf-8');

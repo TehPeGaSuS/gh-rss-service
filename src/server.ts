@@ -1,12 +1,13 @@
 import 'dotenv/config';
 import express from 'express';
-import { ensureRegistered, loadConfig } from './config.js';
+import { ensureConfigFile, ensureRegistered, loadConfig } from './config.js';
 import { readItems, upsertItems, pruneFeed } from './db.js';
 import { toRss } from './feed.js';
 import { routes } from './routes/index.js';
 import { startScheduler } from './scheduler.js';
 import type { FeedConfigEntry } from './types.js';
 
+ensureConfigFile();
 const app = express();
 
 // Stable, filesystem/URL-safe id derived from route + resolved params, so the
