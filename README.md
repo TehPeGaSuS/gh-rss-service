@@ -118,6 +118,32 @@ registered feeds and dedup state across restarts.
 A GitHub Actions workflow (`.github/workflows/docker-publish.yml`) builds and pushes
 `ghcr.io/<owner>/gh-rss-service:latest` (and a `:sha-<short>` tag) on every push to `main`.
 
+## Reverse proxy (Apache example)
+
+To expose this behind a domain/path with Apache (`mod_proxy`, `mod_proxy_http` enabled):
+
+```apache
+<VirtualHost *:443>
+    ServerName gh-rss.example.com
+
+    ProxyPreserveHost On
+    ProxyPass        / http://127.0.0.1:8080/
+    ProxyPassReverse / http://127.0.0.1:8080/
+
+    # SSL config (certbot, etc.) goes here
+</VirtualHost>
+```
+
+Or under a sub-path instead of a dedicated subdomain:
+
+```apache
+ProxyPass        /gh-rss/ http://127.0.0.1:8080/
+ProxyPassReverse /gh-rss/ http://127.0.0.1:8080/
+```
+
+Point Limnoria's `rss` plugin at the proxied URL, e.g.
+`https://gh-rss.example.com/github/issue/anope/anope/closed`.
+
 ## Discover feeds
 
 `GET /routes` lists every route key, its path pattern, and whether it's supported.
