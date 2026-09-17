@@ -21,8 +21,7 @@ export const pull: RouteModule = {
             items: data
                 .filter((item) => item.pull_request)
                 .map((item) => {
-                    const suffix =
-                        state === 'closed' ? (item.pull_request?.merged_at ? ' (merged)' : ' (closed)') : '';
+                    const suffix = item.pull_request?.merged_at ? ' (merged)' : '';
                     return {
                         guid: `${user}/${repo}#pr-${item.number}`,
                         title: `${item.title}${suffix}`,
