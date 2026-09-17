@@ -20,14 +20,18 @@ export const pull: RouteModule = {
             link: host,
             items: data
                 .filter((item) => item.pull_request)
-                .map((item) => ({
-                    guid: `${user}/${repo}#pr-${item.number}`,
-                    title: item.title,
-                    author: item.user?.login,
-                    description: item.body ?? undefined,
-                    pubDate: new Date(item.created_at).toISOString(),
-                    link: item.html_url,
-                })),
+                .map((item) => {
+                    const suffix =
+                        state === 'closed' ? (item.pull_request?.merged_at ? ' (merged)' : ' (closed)') : '';
+                    return {
+                        guid: `${user}/${repo}#pr-${item.number}`,
+                        title: `${item.title}${suffix}`,
+                        author: item.user?.login,
+                        description: item.body ?? undefined,
+                        pubDate: new Date(item.created_at).toISOString(),
+                        link: item.html_url,
+                    };
+                }),
         };
     },
 };
