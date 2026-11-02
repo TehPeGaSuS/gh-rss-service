@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { ensureConfigFile, ensureRegistered, loadConfig } from './config.js';
-import { readItems, readFeedMeta, upsertItems, upsertFeedMeta, pruneFeed } from './db.js';
+import { readItems, readFeedMeta, upsertItems, upsertFeedMeta, pruneFeed, initPush } from './db.js';
 import { toRss } from './feed.js';
 import { routes } from './routes/index.js';
 import { startScheduler } from './scheduler.js';
@@ -34,6 +34,8 @@ for (const route of Object.values(routes)) {
                 const result = await route.fetchItems(params);
                 upsertFeedMeta(id, result.title, result.link);
                 upsertItems(id, result.items);
+                // what the feed has right now is backlog, not news for the webhook
+                initPush(id, result.items);
                 const entry: FeedConfigEntry = { id, route: route.key, params };
                 ensureRegistered(entry);
                 console.log(`[auto-register] new feed "${id}" (${route.key}) registered from first request`);

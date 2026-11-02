@@ -47,6 +47,48 @@ Env vars:
 - `POLL_INTERVAL_MINUTES` — how often the scheduler polls each feed, aligned to the wall clock
   (default `5`). Use a divisor of 60 (`1`, `2`, `3`, `5`, `10`, `15`, `20`, `30`, `60`) to keep the
   alignment clean across hour boundaries.
+  Unchanged REST endpoints answer `304` thanks to the ETag cache, which GitHub doesn't count against
+  the rate limit, so `1` is affordable even with many feeds.
+- `WEBHOOK_URL` — optional. After each poll, new items are POSTed there as JSON (see below).
+- `WEBHOOK_SECRET` — optional. Signs the pushes with `X-Hub-Signature-256`, like GitHub's webhooks.
+
+## Webhook push
+
+For a bot that should hear about new items right away instead of waiting for its RSS reader, set
+`WEBHOOK_URL`. After every poll, the items of a feed that weren't there before are POSTed in one
+request per feed, oldest first:
+
+```json
+{
+  "source": "gh-rss-service",
+  "feed": { "id": "pull_DIYgod_RSSHub_open", "route": "pull", "params": { "...": "..." },
+            "title": "DIYgod/RSSHub Open Pull Requests", "link": "https://github.com/DIYgod/RSSHub/pulls" },
+  "items": [
+    { "guid": "...", "title": "...", "link": "...", "author": "bob", "description": "first 1000 chars",
+      "pubDate": "2026-11-02T00:00:00.000Z", "repo": "DIYgod/RSSHub", "type": null, "reason": null }
+  ]
+}
+```
+
+Headers: `Content-Type: application/json`, `X-GH-RSS-Event: items` and, with `WEBHOOK_SECRET`,
+`X-Hub-Signature-256: sha256=<HMAC of the body>`. Items also carry `state` and `action` (see below). `repo` is the item's own repo for routes that mix
+repos (`notifications`, `*_event`), else the feed's; `type` and `reason` are set for notifications
+(subject type, reason) and events (event type).
+
+- What a feed has on its first fetch is backlog and is never pushed. The pushed state is kept
+  whether or not `WEBHOOK_URL` is set, so turning it on later doesn't push old items either.
+- A push that fails (no answer within 10 s, non-2xx) is retried on the next poll.
+- `pull` and `issue` items carry a `state` (`open`, `closed`, `merged`) and are pushed again when
+  it changes, with an `action`: `opened`, `closed`, `merged` or `reopened` (an item first seen
+  already closed/merged gets that action). Closes and merges only show up in the `all` feeds, e.g.
+  `/github/pull/:user/:repo/all`: an `open` feed drops closed items. Both routes fetch the 100 most
+  recently *updated* items, so a late close is still in the window; the RSS order doesn't change
+  (it follows `first_seen`), and the RSS title keeps its `(merged)` tag.
+- Other changes (a title edit) don't push again. Notifications are pushed again on each new
+  activity in their thread.
+- The [GitHooks](https://github.com/TehPeGaSuS/supy-plugins/tree/main/GitHooks) Limnoria plugin
+  understands these pushes: point `WEBHOOK_URL` at its `/githooks` URL and add the repos with
+  `githooks feed add <channel> <owner> <repo>` (a list separate from its webhook announces).
 
 ## Routes ported
 

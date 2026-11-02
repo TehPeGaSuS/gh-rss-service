@@ -10,7 +10,9 @@ export const pull: RouteModule = {
         const data = (await ghGet(`/repos/${user}/${repo}/issues`, {
             state,
             labels,
-            sort: 'created',
+            // updated, not created: a PR/issue closed long after it was opened
+            // must still be in the window for the close to be seen
+            sort: 'updated',
             direction: 'desc',
             per_page: 100,
         })) as any[];
@@ -29,7 +31,8 @@ export const pull: RouteModule = {
                         description: item.body ?? undefined,
                         pubDate: new Date(item.created_at).toISOString(),
                         link: item.html_url,
-                    };
+                        state: item.pull_request?.merged_at ? 'merged' : item.state === 'closed' ? 'closed' : 'open',
+                    } as const;
                 }),
         };
     },

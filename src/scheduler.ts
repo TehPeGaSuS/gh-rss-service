@@ -1,6 +1,7 @@
 import { routes } from './routes/index.js';
 import { loadConfig } from './config.js';
 import { upsertItems, upsertFeedMeta, pruneFeed } from './db.js';
+import { pushNewItems, webhookEnabled, webhookOrigin } from './webhook.js';
 
 async function pollOnce(): Promise<void> {
     const entries = loadConfig();
@@ -20,6 +21,7 @@ async function pollOnce(): Promise<void> {
             upsertItems(entry.id, result.items);
             pruneFeed(entry.id, entry.limit ?? 500);
             console.log(`[poll] ${entry.id}: ${result.items.length} items fetched`);
+            await pushNewItems(entry, result);
         } catch (err) {
             console.error(`[poll] ${entry.id} failed:`, err instanceof Error ? err.message : err);
         }
@@ -51,6 +53,7 @@ export function startScheduler(): void {
         }, msUntilNextIntervalMark(POLL_INTERVAL_MINUTES));
     };
     console.log(`[poll] polling every ${POLL_INTERVAL_MINUTES} minute(s), aligned to the wall clock`);
+    console.log(webhookEnabled ? `[webhook] pushing new items to ${webhookOrigin}` : '[webhook] WEBHOOK_URL not set, no pushes');
     // Run once immediately on boot, then align to the wall-clock interval grid.
     pollOnce()
         .catch((err) => console.error('[poll] unexpected error:', err))

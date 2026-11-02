@@ -59,5 +59,7 @@ export function eventToItem(e: any): FeedItem {
         link,
         author: actor,
         pubDate: new Date(e.created_at).toISOString(),
+        repo: repoName || undefined,
+        type: e.type,
     };
 }
