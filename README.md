@@ -55,40 +55,88 @@ Env vars:
 ## Webhook push
 
 For a bot that should hear about new items right away instead of waiting for its RSS reader, set
-`WEBHOOK_URL`. After every poll, the items of a feed that weren't there before are POSTed in one
-request per feed, oldest first:
+`WEBHOOK_URL`. After every poll, the items of a feed that are new (or, for PRs and issues, whose
+state changed) are POSTed in one request per feed, oldest first. With `POLL_INTERVAL_MINUTES=1`,
+that's within about a minute of the change on GitHub.
 
 ```json
 {
   "source": "gh-rss-service",
-  "feed": { "id": "pull_DIYgod_RSSHub_open", "route": "pull", "params": { "...": "..." },
-            "title": "DIYgod/RSSHub Open Pull Requests", "link": "https://github.com/DIYgod/RSSHub/pulls" },
+  "feed": { "id": "pull_DIYgod_RSSHub_all", "route": "pull",
+            "params": { "user": "DIYgod", "repo": "RSSHub", "state": "all" },
+            "title": "DIYgod/RSSHub All Pull Requests", "link": "https://github.com/DIYgod/RSSHub/pulls" },
   "items": [
-    { "guid": "...", "title": "...", "link": "...", "author": "bob", "description": "first 1000 chars",
-      "pubDate": "2026-11-02T00:00:00.000Z", "repo": "DIYgod/RSSHub", "type": null, "reason": null }
+    { "guid": "DIYgod/RSSHub#pr-123", "title": "Fix the thing (merged)",
+      "link": "https://github.com/DIYgod/RSSHub/pull/123", "author": "bob",
+      "description": "first 1000 chars of the body", "pubDate": "2026-11-02T00:00:00.000Z",
+      "repo": "DIYgod/RSSHub", "type": null, "reason": null, "state": "merged", "action": "merged" }
   ]
 }
 ```
 
 Headers: `Content-Type: application/json`, `X-GH-RSS-Event: items` and, with `WEBHOOK_SECRET`,
-`X-Hub-Signature-256: sha256=<HMAC of the body>`. Items also carry `state` and `action` (see below). `repo` is the item's own repo for routes that mix
-repos (`notifications`, `*_event`), else the feed's; `type` and `reason` are set for notifications
-(subject type, reason) and events (event type).
+`X-Hub-Signature-256: sha256=<HMAC-SHA256 of the body>` (the same header and format as GitHub's
+webhooks, so a receiver can reuse its GitHub signature check).
 
-- What a feed has on its first fetch is backlog and is never pushed. The pushed state is kept
-  whether or not `WEBHOOK_URL` is set, so turning it on later doesn't push old items either.
-- A push that fails (no answer within 10 s, non-2xx) is retried on the next poll.
-- `pull` and `issue` items carry a `state` (`open`, `closed`, `merged`) and are pushed again when
-  it changes, with an `action`: `opened`, `closed`, `merged` or `reopened` (an item first seen
-  already closed/merged gets that action). Closes and merges only show up in the `all` feeds, e.g.
-  `/github/pull/:user/:repo/all`: an `open` feed drops closed items. Both routes fetch the 100 most
-  recently *updated* items, so a late close is still in the window; the RSS order doesn't change
-  (it follows `first_seen`), and the RSS title keeps its `(merged)` tag.
-- Other changes (a title edit) don't push again. Notifications are pushed again on each new
-  activity in their thread.
-- The [GitHooks](https://github.com/TehPeGaSuS/supy-plugins/tree/main/GitHooks) Limnoria plugin
-  understands these pushes: point `WEBHOOK_URL` at its `/githooks` URL and add the repos with
-  `githooks feed add <channel> <owner> <repo>` (a list separate from its webhook announces).
+Item fields:
+
+| Field | Value |
+|---|---|
+| `guid` `title` `link` `author` `pubDate` | as in the RSS feed; `description` is cut to 1000 characters |
+| `repo` | `owner/name`: the item's own repo for routes that mix repos (`notifications`, `*_event`), else the feed's; `null` when there is none (e.g. `user/followers`) |
+| `state` | `open`, `closed` or `merged` for `pull` and `issue` items, else `null` |
+| `action` | `opened`, `closed`, `merged` or `reopened` when `state` is set, else `null` |
+| `type` | notifications: the subject type (`PullRequest`, `Issue`, `Release`...); `*_event`: the event type (`PushEvent`...) |
+| `reason` | notifications: why you got it (`mention`, `review_requested`, `subscribed`...) |
+
+When is an item pushed:
+
+- **Never for the backlog.** What a feed has on its first fetch is recorded, not pushed. That
+  record is kept whether or not `WEBHOOK_URL` is set, so turning it on later doesn't push old
+  items either.
+- **New items**, once.
+- **PR and issue state changes**: `pull` and `issue` items are pushed again when their state
+  changes, with `action` `closed`, `merged` or `reopened` (an item first seen already closed or
+  merged gets that action, e.g. a PR opened and merged between two polls). Closes and merges only
+  show up in the **`all`** feeds, e.g. `/github/pull/:user/:repo/all`: an `open` feed simply drops
+  closed items. Both routes fetch the 100 most recently *updated* items, so a PR closed long after
+  it was opened is still in the window. The RSS output doesn't change: same order (by
+  `first_seen`), and the title still gets its `(merged)` tag.
+- **Notifications**, again on each new activity in their thread.
+- Anything else (a title edit, a new label) doesn't push again.
+- A push that fails (no answer within 10 s, or a non-2xx status) is **retried** on the next poll.
+
+### With the GitHooks Limnoria plugin
+
+The [GitHooks](https://github.com/TehPeGaSuS/supy-plugins/tree/main/GitHooks) plugin announces
+these pushes on IRC, with a list of its own next to its regular webhook announces:
+
+1. Here, in `.env`:
+   ```
+   POLL_INTERVAL_MINUTES=1
+   WEBHOOK_URL=http://<bot-host>:<limnoria-http-port>/githooks
+   WEBHOOK_SECRET=<one of the bot's supybot.plugins.GitHooks.announces.secret>
+   ```
+2. On the bot:
+   ```
+   config supybot.plugins.GitHooks.feedService http://<this-service>:8080
+   githooks feed add unrealircd unrealircd               # registers its pull/issue "all" + releases feeds here
+   githooks feed announce add #chan unrealircd unrealircd
+   ```
+
+`feed add` just requests the routes from this service, which registers them as described in
+[How it works](#how-it-works). See the GitHooks README for the line format and its variables.
+
+### Removing a feed
+
+There is no endpoint to unregister a feed: remove its entry from `config.json` (the scheduler
+reloads it on every poll). Its stored items stay in the database until pruned.
+
+### Exposure
+
+Anyone who can reach the HTTP port can register feeds, which the scheduler then polls with your
+token. Keep the port on localhost or a private network (`127.0.0.1:8080:8080` in compose), or put
+it behind a reverse proxy with access control.
 
 ## Routes ported
 
